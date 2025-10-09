@@ -1,0 +1,23 @@
+[export]
+fields = [
+  # From [postgres]
+  "postgres.DB",
+  "postgres.HOST",
+  "postgres.PORT",
+
+  # From [uvicorn]
+  "uvicorn.HOST",
+  "uvicorn.PORT",
+
+  # From [local]
+  "APP_ENV",
+  "DB_HOST",
+  "DB_PORT",
+  "POSTGRES_USER",
+  "POSTGRES_PASSWORD",
+  "POSTGRES_DB",
+  "POSTGRES_PORT",
+  "UVICORN_HOST",
+  "UVICORN_PORT",
+  "USE_DEBUGPY",
+]

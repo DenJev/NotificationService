@@ -1,0 +1,31 @@
+APP_ENV = "local"
+DB_HOST = "db_test"
+DB_PORT = "5432"
+POSTGRES_USER = "postgres"
+POSTGRES_PASSWORD = "changethis"
+POSTGRES_DB = "slava_test"
+POSTGRES_PORT = "5432"
+UVICORN_HOST = "0.0.0.0"
+UVICORN_PORT = "9999"
+USE_DEBUGPY = "0"
+
+[postgres]
+DB = "slava_test"
+
+HOST = "test_db"
+PORT = 5432
+DRIVER = "psycopg"
+
+[uvicorn]
+HOST = "0.0.0.0"
+PORT = 9999
+
+[sqla]
+ECHO = false
+ECHO_POOL = false
+POOL_SIZE = 50
+MAX_OVERFLOW = 10
+
+[logs]
+LEVEL = "DEBUG"
+
