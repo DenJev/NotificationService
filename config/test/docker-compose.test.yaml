@@ -14,6 +14,7 @@ services:
       retries: 5
 
   tests:
+    working_dir: /app
     build:
       context: ../..
       dockerfile: config/${APP_ENV}/Dockerfile.test
@@ -38,10 +39,6 @@ services:
       - sh
       - -c
       - |
-        if [ "$USE_DEBUGPY" = "1" ]; then
-          echo "Starting pytest with debugpy..."
-          python -m debugpy --listen 0.0.0.0:5678 --wait-for-client -m pytest -s -v --asyncio-mode=auto /tests
-        else
-          echo "Starting pytest normally..."
-          pytest -s -v --asyncio-mode=auto /tests
-        fi
+        alembic upgrade head &&
+        python -Xfrozen_modules=off -m debugpy --listen 0.0.0.0:5678 --wait-for-client \
+          -m pytest --setup-show -s -v --asyncio-mode=auto /tests

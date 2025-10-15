@@ -14,7 +14,7 @@ class SmtpEmailSender(EmailSender):
     def __init__(self, config: Config):
         self.config = config
 
-    def send(self, to: str, subject: str, body: str):
+    async def send(self, to: str, subject: str, body: str):
         try:
             self.gmail_send_message(to, subject, body)
         except HttpError:

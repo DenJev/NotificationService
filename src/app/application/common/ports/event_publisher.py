@@ -12,11 +12,11 @@ class EventPublisher(Protocol):
     by other services.
     """
 
-    async def publish(self) -> None:
+    async def publish(self, topic_name: str, message: str, **attrs) -> None:
         """ """
 
     async def publish_many(self) -> None:
         """ """
 
-    async def _ensure_topic(self) -> None:
+    async def _ensure_topic(self, topic_name: str) -> None:
         """ """

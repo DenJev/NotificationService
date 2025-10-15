@@ -26,7 +26,7 @@ class EmailSender(Protocol):
           and may choose to log or raise domain-specific exceptions.
     """
 
-    def send(self, to: str, subject: str, body: str) -> None:
+    def send(self, to: str, subject: str, body: str):
         """
         Sends an email message to the specified recipient.
 

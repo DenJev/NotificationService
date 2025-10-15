@@ -118,27 +118,43 @@ To run the test suite inside a Docker environment:
    docker compose -f docker-compose.test.yaml up --build
    ```
 
-## TODO
+## Idempotency Goal
 
-1. **Make consumer idempotent**
+The Notification Service consumes messages from Google Pub/Sub.
+Since Pub/Sub guarantees at-least-once delivery, the same message may be delivered multiple times or to multiple consumers concurrently.
+To prevent duplicate side effects (e.g., multiple emails sent for the same event), this service implements strong idempotency at the application level.
 
-### Idempotency Goal
+#### Implementation Details
 
-In the current setup, multiple instances of the **Notification Service** can be connected to the same **Google Pub/Sub subscription**.  
-The goal is to ensure that **only one consumer processes a given message**, even if multiple consumers receive or acknowledge it concurrently.
+**Idempotency** is enforced through a combination of:
 
-This form of idempotency means:
+Database-backed event tracking
+Each Pub/Sub message is uniquely identified by its message_id and topic.
+These are stored in the events table with a lifecycle status:
 
-- Each Pub/Sub message should be **acted upon exactly once**, regardless of how many service instances are running.
-- If a message is redelivered or received by multiple subscribers, **only the first successful handler** should perform the side effect (e.g., sending an email).
-- Other consumers that receive the same message should detect that it has already been processed and safely **acknowledge and skip it**.
+*PROCESSING* - event is being handled
 
-### Possible Approaches
+*PROCESSED* - event successfully handled
 
-- Use a **message deduplication store** (e.g., Redis, Postgres) to track processed message IDs.  
-  Before handling a message, check if its `message_id` or `event_id` has already been recorded.
-- Implement an **idempotency key** derived from the event payload or Pub/Sub `message_id`.
-- Store and enforce processing status at the **application level**, ensuring that replays or retries do not trigger duplicate actions.
+*FAILED* - event processing failed (retryable)
 
-**Goal:**  
-Ensure **at-least-once delivery semantics** from Pub/Sub do not result in **duplicate side effects** in the Notification Service.
+PostgreSQL advisory locks
+Before handling an event, the interactor acquires a transaction-level advisory lock based on the topic and message IDs:
+
+```SELECT pg_try_advisory_xact_lock(:topic_key, :message_key)```
+
+
+If the lock cannot be acquired, another consumer is already processing this message.
+
+This ensures only one consumer can process a given message at a time — even across distributed instances.
+
+Event status-based deduplication
+When a message is received:
+
+If the event doesn’t exist → create it and mark as *PROCESSING*
+
+If it’s already *PROCESSED* → ack message and skip (idempotent no-op)
+
+If it’s *PROCESSING* → skip (concurrent duplicate) but nack the message so it can be retried in case consumer fails.
+
+If it’s *FAILED* → nack message and retry the event

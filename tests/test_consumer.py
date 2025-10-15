@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
@@ -39,7 +39,7 @@ def make_pubsub_message(data: dict | list, attributes: dict | None = None) -> pu
     mock_msg = MagicMock(spec=pubsub_v1.subscriber.message.Message)
     mock_msg.data = data
     mock_msg.attributes = attributes or {}
-    mock_msg.publish_time = datetime.utcnow()
+    mock_msg.publish_time = datetime.now(timezone.utc)
     mock_msg.ack = Mock()
     mock_msg.nack = Mock()
 
@@ -81,7 +81,7 @@ async def test_consumer_process_message(
         data = b'[{"Italian": "Fiore", "English": "Flower"}]'
         attributes = {"event_type": "DailyDigest"}
         message = make_pubsub_message(data, attributes)
-        pub_sub_event = PubSubMessage(message, data, attributes, "DailyDigest", datetime.now())
+        pub_sub_event = PubSubMessage(message, data, attributes, "DailyDigest", datetime.now(), "test-topic")
 
         fake_future = Mock()
         fake_future.result = Mock(side_effect=side_effect)
