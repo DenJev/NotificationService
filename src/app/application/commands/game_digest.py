@@ -1,7 +1,10 @@
+import logging
 from dataclasses import dataclass
 
-from app.application.common.exceptions.email import EmailDeliveryError
+from app.application.commands.base_interactor import BaseEventInteractor
 from app.application.common.ports.email_sender import EmailSender
+from app.application.common.ports.unit_of_work import UnitOfWork
+from app.domain.entities.pub_sub.entity import PubSubMessage
 
 
 class WordsToLearn:
@@ -49,32 +52,27 @@ def convert_words_to_learn_to_str_email(words_to_learn: list[dict[str, str]]) ->
     return html_table.strip()
 
 
+logger = logging.getLogger(__name__)
+
+
 @dataclass
 class GameDigestEventMessage:
     username: str
     incorrect_words: list[dict]
 
 
-class GameDigestInteractor:
-    """
-    :raises TypeError:
-    :raises EmailDeliveryError:
-    """
-
-    def __init__(self, smtp_sender: EmailSender):
+class GameDigestInteractor(BaseEventInteractor):
+    def __init__(self, smtp_sender: EmailSender, unit_of_work: UnitOfWork):
+        super().__init__(unit_of_work)
         self.smtp_sender = smtp_sender
 
-    async def __call__(self, message: list[dict[str, str]]):
+    async def process_event(self, message: PubSubMessage):
         try:
-            game_digest_event_message = GameDigestEventMessage(**message)
+            game_digest_event_message = GameDigestEventMessage(**message.data)
         except TypeError:
             raise
-
-        try:
-            self.smtp_sender.send(
-                game_digest_event_message.username,
-                "Game completed! Make sure to learn these words!",
-                convert_words_to_learn_to_str_email(game_digest_event_message.incorrect_words),
-            )
-        except EmailDeliveryError:
-            raise
+        await self.smtp_sender.send(
+            game_digest_event_message.username,
+            "Game completed! Make sure to learn these words!",
+            convert_words_to_learn_to_str_email(game_digest_event_message.incorrect_words),
+        )

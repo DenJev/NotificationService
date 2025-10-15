@@ -2,11 +2,13 @@ import asyncio
 import logging
 import time
 
+import sqlalchemy
 from dishka import AsyncContainer, Scope
 from google.api_core.exceptions import NotFound
 from google.cloud import pubsub_v1
 
 from app.application.common.exceptions.email import EmailDeliveryError
+from app.application.common.exceptions.event import EventProcessedError, EventProcessingError
 from app.application.common.ports.event_subscriber import EventConsumer
 from app.application.events.event_dispatcher import EventDispatcher
 from app.config import Config
@@ -53,7 +55,7 @@ class PubSubEventConsumer(EventConsumer):
             dispatcher.container = request_container
             try:
                 assert message.event_type
-                await dispatcher.dispatch(message.event_type, message.data, message.attributes)
+                await dispatcher.dispatch(message)
             except TypeError:
                 raise
 
@@ -70,6 +72,13 @@ class PubSubEventConsumer(EventConsumer):
         except EmailDeliveryError as e:
             logger.error(f"Email error from Google API: {event.event_type}%s", e, exc_info=True)
             event.message.ack()
+        except EventProcessedError as e:
+            logger.error(f"Message already processed and email sent: {event.event_type}%s", e, exc_info=True)
+            event.message.ack()
+        except EventProcessingError:
+            event.message.nack()
+        except sqlalchemy.exc.IntegrityError:
+            event.message.ack()
         except Exception as e:
             logger.error("Error in handle_message: %s", e, exc_info=True)
             event.message.nack()
@@ -78,7 +87,7 @@ class PubSubEventConsumer(EventConsumer):
 
     def callback(self, message: pubsub_v1.subscriber.message.Message) -> None:
         try:
-            message = PubSubMessage.from_pubsub(message)
+            message = PubSubMessage.from_pubsub(message, self.topic_id)
             if not hasattr(self, "loop") or self.loop is None:
                 raise RuntimeError("No event loop available in subscriber")
 
@@ -92,7 +101,7 @@ class PubSubEventConsumer(EventConsumer):
             logger.error("Error scheduling message: %s", e, exc_info=True)
             message.nack()
 
-    async def subscribe(self, loop, retry: bool = False):
+    async def subscribe(self, loop, retry: bool = False) -> None:
         if retry:
             logger.info("Attempting to start Pub/Sub listener again: %s")
 

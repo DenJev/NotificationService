@@ -18,7 +18,7 @@ class EventConsumer(Protocol):
     async def _ensure_subscription(self) -> None:
         """ """
 
-    async def subscribe(self) -> None:
+    async def subscribe(self, loop, retry: bool = False) -> None:
         """ """
 
     async def _ensure_topic(self) -> None:

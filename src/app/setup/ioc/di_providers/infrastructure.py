@@ -2,7 +2,7 @@
 import logging
 from typing import AsyncIterable, cast
 
-from dishka import Provider, Scope, provide
+from dishka import Provider, Scope, provide, provide_all
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -10,9 +10,10 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-from app.infrastructure.adapters.application.new_types import (
-    UserAsyncSession,
-)
+from app.application.commands.game_digest import GameDigestInteractor
+from app.application.common.ports.unit_of_work import UnitOfWork
+from app.infrastructure.adapters.database.repositories.event_repository import EventRepository
+from app.infrastructure.adapters.database.sqlalc_unit_of_work import SqlAlchemyUnitOfWork
 from app.setup.config.settings import PostgresDsn, SqlaEngineSettings
 
 log = logging.getLogger(__name__)
@@ -60,58 +61,21 @@ class UserInfrastructureProvider(Provider):
     async def provide_user_async_session(
         self,
         async_session_maker: async_sessionmaker[AsyncSession],
-    ) -> AsyncIterable[UserAsyncSession]:
+    ) -> AsyncIterable[AsyncSession]:
         log.debug("Starting User async session...")
         async with async_session_maker() as session:
             log.debug("Async session started for User.")
-            yield cast(UserAsyncSession, session)
+            yield cast(AsyncSession, session)
             log.debug("Closing async session.")
         log.debug("Async session closed for User.")
 
-
-# class AuthInfrastructureProvider(Provider):
-#     scope = Scope.REQUEST
-
-#     # Database
-#     @provide
-#     async def provide_auth_async_session(
-#         self,
-#         async_session_maker: async_sessionmaker[AsyncSession],
-#     ) -> AsyncIterable[AuthAsyncSession]:
-#         log.debug("Starting Auth async session...")
-#         async with async_session_maker() as session:
-#             log.debug("Async session started for Auth.")
-#             yield cast(AuthAsyncSession, session)
-#             log.debug("Closing async session.")
-#         log.debug("Async session closed for Auth.")
-
-#     # Request
-#     request = from_context(provides=Request)
-
-#     # Ports
-#     access_token_request_handler = provide(
-#         source=CookieAccessTokenRequestHandler,
-#         provides=AccessTokenRequestHandler,
-#     )
-
-#     # Data Mappers
-#     sqla_auth_session_data_mapper = provide(source=SqlaAuthSessionDataMapper)
-
-#     # Transaction Manager
-#     sqla_auth_transaction_manager = provide(source=SqlaAuthTransactionManager)
-
-#     # Concrete Objects
-#     infra_objects = provide_all(
-#         AuthSessionManager,
-#         StrAuthSessionIdGenerator,
-#         UtcAuthSessionTimer,
-#         JwtTokenManager,
-#         JwtAccessTokenProcessor,
-#         AuthSessionIdentityProvider,
-#         KeycloakIdentityProvider,
-#     )
-
-#     # "Interactors" (Infrastructure handlers)
-#     interactors = provide_all(
-#         LogInHandler,
-#     )
+    unit_of_work = provide(
+        source=SqlAlchemyUnitOfWork,
+        provides=UnitOfWork,
+    )
+    event_repository = provide(
+        source=EventRepository,
+    )
+    interactors = provide_all(
+        GameDigestInteractor,
+    )

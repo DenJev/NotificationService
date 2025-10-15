@@ -21,6 +21,8 @@ in `env.py` for Alembic migrations to ensure all models are available
 during database migrations.
 """
 
+from app.infrastructure.sqla_persistence.mappings.event import map_event_table
+
 
 def map_tables() -> None:
-    pass
+    map_event_table()
